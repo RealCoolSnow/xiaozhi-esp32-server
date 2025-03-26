@@ -156,4 +156,5 @@ main/manager-web/node_modules
 main/xiaozhi-server/models/SenseVoiceSmall/model.pt
 main/xiaozhi-server/models/sherpa-onnx*
 my_wakeup_words.mp3
-xiaozhi-server
+xiaozhi-server/models/SenseVoiceSmall/model.pt
+xiaozhi-server/data/.config.yaml
