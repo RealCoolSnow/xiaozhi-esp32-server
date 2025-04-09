@@ -2,7 +2,7 @@
   <el-header class="header">
     <div class="header-container">
       <!-- 左侧元素 -->
-      <div class="header-left">
+      <div class="header-left" @click="goHome">
         <img loading="lazy" alt="" src="@/assets/xiaozhi-logo.png" class="logo-img" />
         <img loading="lazy" alt="" src="@/assets/xiaozhi-ai.png" class="brand-img" />
       </div>
@@ -25,6 +25,12 @@
           <img loading="lazy" alt="" src="@/assets/header/user_management.png"
             :style="{ filter: $route.path === '/user-management' ? 'brightness(0) invert(1)' : 'None' }" />
           用户管理
+        </div>
+        <div v-if="isSuperAdmin" class="equipment-management"
+          :class="{ 'active-tab': $route.path === '/params-management' }" @click="goParamManagement">
+          <img loading="lazy" alt="" src="@/assets/header/param_management.png"
+            :style="{ filter: $route.path === '/params-management' ? 'brightness(0) invert(1)' : 'None' }" />
+          参数管理
         </div>
       </div>
 
@@ -95,6 +101,9 @@ export default {
     },
     goModelConfig() {
       this.$router.push('/model-config')
+    },
+    goParamManagement() {
+      this.$router.push('/params-management')
     },
     // 获取用户信息
     fetchUserInfo() {
