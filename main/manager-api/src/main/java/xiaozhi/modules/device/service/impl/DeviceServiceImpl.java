@@ -221,7 +221,7 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
         params.put(Constant.PAGE, dto.getPage());
         params.put(Constant.LIMIT, dto.getLimit());
         IPage<DeviceEntity> page = baseDao.selectPage(
-                getPage(params, "sort", true),
+                getPage(params, "mac_address", true),
                 // 定义查询条件
                 new QueryWrapper<DeviceEntity>()
                         // 必须设备关键词查找
@@ -238,6 +238,16 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
         }).toList();
         // 计算页数
         return new PageData<>(list, page.getTotal());
+    }
+
+    @Override
+    public DeviceEntity getDeviceByMacAddress(String macAddress) {
+        if (StringUtils.isBlank(macAddress)) {
+            return null;
+        }
+        QueryWrapper<DeviceEntity> wrapper = new QueryWrapper<>();
+        wrapper.eq("mac_address", macAddress);
+        return baseDao.selectOne(wrapper);
     }
 
     private DeviceReportRespDTO.ServerTime buildServerTime() {
