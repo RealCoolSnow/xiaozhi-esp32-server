@@ -42,7 +42,7 @@
             <div class="table_bottom">
               <div class="ctrl_btn">
                 <el-button size="mini" type="primary" class="select-all-btn" @click="handleSelectAll">
-                    {{ isAllSelected ? '取消全选' : '全选' }}
+                  {{ isAllSelected ? '取消全选' : '全选' }}
                 </el-button>
                 <el-button size="mini" type="success" icon="el-icon-circle-check" @click="batchEnable">启用</el-button>
                 <el-button size="mini" type="warning" @click="batchDisable"><i
@@ -50,6 +50,15 @@
                 <el-button size="mini" type="danger" icon="el-icon-delete" @click="batchDelete">删除</el-button>
               </div>
               <div class="custom-pagination">
+                <el-select v-model="pageSize" @change="handlePageSizeChange" class="page-size-select">
+                  <el-option
+                    v-for="item in pageSizeOptions"
+                    :key="item"
+                    :label="`${item}条/页`"
+                    :value="item">
+                  </el-option>
+                </el-select>
+
                 <button class="pagination-btn" :disabled="currentPage === 1" @click="goFirst">
                   首页
                 </button>
@@ -70,7 +79,6 @@
       </div>
     </div>
 
-    <div class="copyright">©2025 xiaozhi-esp32-server</div>
     <view-password-dialog :visible.sync="showViewPassword" :password="currentPassword" />
   </div>
 </template>
@@ -88,6 +96,7 @@ export default {
       currentPassword: "",
       searchPhone: "",
       userList: [],
+      pageSizeOptions: [5, 10, 20, 50, 100],
       currentPage: 1,
       pageSize: 5,
       total: 0,
@@ -118,6 +127,12 @@ export default {
     },
   },
   methods: {
+     handlePageSizeChange(val) {
+      this.pageSize = val;
+      this.currentPage = 1;
+      this.fetchUsers();
+    },
+
     fetchUsers() {
       Api.admin.getUserList(
         {
@@ -344,15 +359,20 @@ export default {
   background: linear-gradient(to bottom right, #dce8ff, #e4eeff, #e6cbfd) center;
   -webkit-background-size: cover;
   -o-background-size: cover;
+  overflow: hidden;
 }
 
 .main-wrapper {
   margin: 5px 22px;
   border-radius: 15px;
-  min-height: 600px;
+  min-height: calc(100vh - 350px);
+  height: auto;
+  max-height: 80vh;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   position: relative;
   background: rgba(237, 242, 255, 0.5);
+  display: flex;
+  flex-direction: column;
 }
 
 .operation-bar {
@@ -399,12 +419,18 @@ export default {
   min-width: 600px;
   overflow-x: auto;
   background-color: white;
+  display: flex;
+  flex-direction: column;
 }
 
 .user-card {
   background: white;
   border: none;
   box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
 }
 
 .table_bottom {
@@ -465,28 +491,18 @@ export default {
   color: black;
 }
 
-.copyright {
-  text-align: center;
-  color: #979db1;
-  font-size: 12px;
-  font-weight: 400;
-  margin-top: auto;
-  padding: 30px 0 20px;
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-}
-
 .custom-pagination {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 15px;
+
+  .el-select {
+    margin-right: 8px;
+  }
 
   .pagination-btn:first-child,
   .pagination-btn:nth-child(2),
+  .pagination-btn:nth-child(3),
   .pagination-btn:nth-last-child(2) {
     min-width: 60px;
     height: 32px;
@@ -509,7 +525,7 @@ export default {
     }
   }
 
-  .pagination-btn:not(:first-child):not(:nth-child(2)):not(:nth-last-child(2)) {
+  .pagination-btn:not(:first-child):not(:nth-child(2)):not(:nth-child(3)):not(:nth-last-child(2)) {
     min-width: 28px;
     height: 32px;
     padding: 0;
@@ -545,6 +561,19 @@ export default {
 
 :deep(.transparent-table) {
   background: white;
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  .el-table__body-wrapper {
+    flex: 1;
+    overflow: auto;
+    max-height: none !important;
+  }
+
+  .el-table__header-wrapper {
+    flex-shrink: 0;
+  }
 
   .el-table__header th {
     background: white !important;
@@ -622,4 +651,59 @@ export default {
     }
   }
 }
+
+.page-size-select {
+    width: 100px;
+    margin-right: 10px;
+
+    :deep(.el-input__inner) {
+        height: 32px;
+        line-height: 32px;
+        border-radius: 4px;
+        border: 1px solid #e4e7ed;
+        background: #dee7ff;
+        color: #606266;
+        font-size: 14px;
+    }
+
+    :deep(.el-input__suffix) {
+        right: 6px;
+        width: 15px;
+        height: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        top: 6px;
+        border-radius: 4px;
+    }
+
+    :deep(.el-input__suffix-inner) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+    }
+
+    :deep(.el-icon-arrow-up:before) {
+        content: "";
+        display: inline-block;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 9px solid #606266;
+        position: relative;
+        transform: rotate(0deg);
+        transition: transform 0.3s;
+    }
+}
+
+.el-table {
+  --table-max-height: calc(100vh - 400px);
+  max-height: var(--table-max-height);
+
+  .el-table__body-wrapper {
+    max-height: calc(var(--table-max-height) - 40px);
+  }
+}
+
+
 </style>
