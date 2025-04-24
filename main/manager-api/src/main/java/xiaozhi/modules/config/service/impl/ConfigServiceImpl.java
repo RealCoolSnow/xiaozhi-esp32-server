@@ -9,6 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import lombok.AllArgsConstructor;
+import xiaozhi.common.exception.ErrorCode;
 import xiaozhi.common.exception.RenException;
 import xiaozhi.common.redis.RedisKeys;
 import xiaozhi.common.redis.RedisUtils;
@@ -83,8 +84,14 @@ public class ConfigServiceImpl implements ConfigService {
         // 根据MAC地址查找设备
         DeviceEntity device = deviceService.getDeviceByMacAddress(macAddress);
         if (device == null) {
-            throw new RenException("设备未找到");
+            // 如果设备，去redis里看看有没有需要连接的设备
+            String cachedCode = deviceService.geCodeByDeviceId(macAddress);
+            if (StringUtils.isNotBlank(cachedCode)) {
+                throw new RenException(ErrorCode.OTA_DEVICE_NEED_BIND, cachedCode);
+            }
+            throw new RenException(ErrorCode.OTA_DEVICE_NOT_FOUND, "not found device");
         }
+
         // 获取智能体信息
         AgentEntity agent = agentService.getAgentById(device.getAgentId());
         if (agent == null) {
@@ -98,7 +105,9 @@ public class ConfigServiceImpl implements ConfigService {
         }
         // 构建返回数据
         Map<String, Object> result = new HashMap<>();
-
+        // 获取单台设备每天最多输出字数
+        String deviceMaxOutputSize = sysParamsService.getValue("device_max_output_size", true);
+        result.put("device_max_output_size", deviceMaxOutputSize);
         // 如果客户端已实例化模型，则不返回
         String alreadySelectedVadModelId = (String) selectedModule.get("VAD");
         if (alreadySelectedVadModelId != null && alreadySelectedVadModelId.equals(agent.getVadModelId())) {
@@ -261,6 +270,12 @@ public class ConfigServiceImpl implements ConfigService {
                         if (intentLLMModelId != null && intentLLMModelId.equals(llmModelId)) {
                             intentLLMModelId = null;
                         }
+                    } else if ("function_call".equals(map.get("type"))) {
+                        String functionStr = (String) map.get("functions");
+                        if (StringUtils.isNotBlank(functionStr)) {
+                            String[] functions = functionStr.split("\\;");
+                            map.put("functions", functions);
+                        }
                     }
                 }
                 // 如果是LLM类型，且intentLLMModelId不为空，则添加附加模型
@@ -276,7 +291,7 @@ public class ConfigServiceImpl implements ConfigService {
 
         result.put("selected_module", selectedModule);
         if (StringUtils.isNotBlank(prompt)) {
-            prompt = prompt.replace("{{assistant_name}}", "小智");
+            prompt = prompt.replace("{{assistant_name}}", StringUtils.isBlank(assistantName) ? "小智" : assistantName);
         }
         result.put("prompt", prompt);
     }

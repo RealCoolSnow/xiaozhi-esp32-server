@@ -15,9 +15,14 @@
       <div class="content-panel">
         <div class="content-area">
           <el-card class="user-card" shadow="never">
-            <el-table ref="userTable" :data="userList" class="transparent-table"
-              :header-cell-class-name="headerCellClassName">
-              <el-table-column label="选择" type="selection" align="center" width="120"></el-table-column>
+            <el-table ref="userTable" :data="userList" class="transparent-table" v-loading="loading"
+              element-loading-text="拼命加载中" element-loading-spinner="el-icon-loading"
+              element-loading-background="rgba(255, 255, 255, 0.7)">
+              <el-table-column label="选择" align="center" width="120">
+                <template slot-scope="scope">
+                  <el-checkbox v-model="scope.row.selected"></el-checkbox>
+                </template>
+              </el-table-column>
               <el-table-column label="用户Id" prop="userid" align="center"></el-table-column>
               <el-table-column label="手机号码" prop="mobile" align="center"></el-table-column>
               <el-table-column label="设备数量" prop="deviceCount" align="center"></el-table-column>
@@ -51,11 +56,7 @@
               </div>
               <div class="custom-pagination">
                 <el-select v-model="pageSize" @change="handlePageSizeChange" class="page-size-select">
-                  <el-option
-                    v-for="item in pageSizeOptions"
-                    :key="item"
-                    :label="`${item}条/页`"
-                    :value="item">
+                  <el-option v-for="item in pageSizeOptions" :key="item" :label="`${item}条/页`" :value="item">
                   </el-option>
                 </el-select>
 
@@ -80,27 +81,31 @@
     </div>
 
     <view-password-dialog :visible.sync="showViewPassword" :password="currentPassword" />
+    <el-footer>
+      <version-footer />
+    </el-footer>
   </div>
 </template>
 
 <script>
 import Api from "@/apis/api";
 import HeaderBar from "@/components/HeaderBar.vue";
+import VersionFooter from "@/components/VersionFooter.vue";
 import ViewPasswordDialog from "@/components/ViewPasswordDialog.vue";
-
 export default {
-  components: { HeaderBar, ViewPasswordDialog },
+  components: { HeaderBar, ViewPasswordDialog, VersionFooter },
   data() {
     return {
       showViewPassword: false,
       currentPassword: "",
       searchPhone: "",
       userList: [],
-      pageSizeOptions: [5, 10, 20, 50, 100],
+      pageSizeOptions: [10, 20, 50, 100],
       currentPage: 1,
-      pageSize: 5,
+      pageSize: 10,
       total: 0,
-      isAllSelected: false
+      isAllSelected: false,
+      loading: false,
     };
   },
   created() {
@@ -127,13 +132,14 @@ export default {
     },
   },
   methods: {
-     handlePageSizeChange(val) {
+    handlePageSizeChange(val) {
       this.pageSize = val;
       this.currentPage = 1;
       this.fetchUsers();
     },
 
     fetchUsers() {
+      this.loading = true;
       Api.admin.getUserList(
         {
           page: this.currentPage,
@@ -141,8 +147,12 @@ export default {
           mobile: this.searchPhone,
         },
         ({ data }) => {
+          this.loading = false; // 结束加载
           if (data.code === 0) {
-            this.userList = data.data.list
+            this.userList = data.data.list.map(item => ({
+              ...item,
+              selected: false
+            }));
             this.total = data.data.total;
           }
         }
@@ -153,15 +163,13 @@ export default {
       this.fetchUsers();
     },
     handleSelectAll() {
-      if (this.isAllSelected) {
-        this.$refs.userTable.clearSelection();
-      } else {
-        this.$refs.userTable.toggleAllSelection();
-      }
       this.isAllSelected = !this.isAllSelected;
+      this.userList.forEach(row => {
+        row.selected = this.isAllSelected;
+      });
     },
     batchDelete() {
-      const selectedUsers = this.$refs.userTable.selection;
+      const selectedUsers = this.userList.filter(user => user.selected);
       if (selectedUsers.length === 0) {
         this.$message.warning("请先选择需要删除的用户");
         return;
@@ -226,19 +234,11 @@ export default {
         });
     },
     batchEnable() {
-      const selectedUsers = this.$refs.userTable.selection;
-      if (selectedUsers.length === 0) {
-        this.$message.warning("请先选择需要启用的用户");
-        return;
-      }
+      const selectedUsers = this.userList.filter(user => user.selected);
       this.handleChangeStatus(selectedUsers, 1);
     },
     batchDisable() {
-      const selectedUsers = this.$refs.userTable.selection;
-      if (selectedUsers.length === 0) {
-        this.$message.warning("请先选择需要禁用的用户");
-        return;
-      }
+      const selectedUsers = this.userList.filter(user => user.selected);
       this.handleChangeStatus(selectedUsers, 0);
     },
     resetPassword(row) {
@@ -281,12 +281,6 @@ export default {
           });
         })
         .catch(() => { });
-    },
-    headerCellClassName({ columnIndex }) {
-      if (columnIndex === 0) {
-        return "custom-selection-header";
-      }
-      return "";
     },
     goFirst() {
       this.currentPage = 1;
@@ -365,7 +359,7 @@ export default {
 .main-wrapper {
   margin: 5px 22px;
   border-radius: 15px;
-  min-height: calc(100vh - 350px);
+  min-height: calc(100vh - 24vh);
   height: auto;
   max-height: 80vh;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
@@ -425,12 +419,20 @@ export default {
 
 .user-card {
   background: white;
-  border: none;
-  box-shadow: none;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  flex: 1;
+  border: none;
+  box-shadow: none;
   overflow: hidden;
+
+  ::v-deep .el-card__body {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+  }
 }
 
 .table_bottom {
@@ -565,9 +567,10 @@ export default {
   width: 100%;
   display: flex;
   flex-direction: column;
+
   .el-table__body-wrapper {
     flex: 1;
-    overflow: auto;
+    overflow-y: auto;
     max-height: none !important;
   }
 
@@ -602,19 +605,6 @@ export default {
   color: #5a64b5 !important;
 }
 
-:deep(.custom-selection-header) {
-  .el-checkbox {
-    display: none !important;
-  }
-
-  &::after {
-    content: "选择";
-    display: inline-block;
-    color: black;
-    font-weight: bold;
-    padding-bottom: 18px;
-  }
-}
 
 :deep(.el-checkbox__inner) {
   background-color: #eeeeee !important;
@@ -653,51 +643,51 @@ export default {
 }
 
 .page-size-select {
-    width: 100px;
-    margin-right: 10px;
+  width: 100px;
+  margin-right: 10px;
 
-    :deep(.el-input__inner) {
-        height: 32px;
-        line-height: 32px;
-        border-radius: 4px;
-        border: 1px solid #e4e7ed;
-        background: #dee7ff;
-        color: #606266;
-        font-size: 14px;
-    }
+  :deep(.el-input__inner) {
+    height: 32px;
+    line-height: 32px;
+    border-radius: 4px;
+    border: 1px solid #e4e7ed;
+    background: #dee7ff;
+    color: #606266;
+    font-size: 14px;
+  }
 
-    :deep(.el-input__suffix) {
-        right: 6px;
-        width: 15px;
-        height: 20px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        top: 6px;
-        border-radius: 4px;
-    }
+  :deep(.el-input__suffix) {
+    right: 6px;
+    width: 15px;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    top: 6px;
+    border-radius: 4px;
+  }
 
-    :deep(.el-input__suffix-inner) {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-    }
+  :deep(.el-input__suffix-inner) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
 
-    :deep(.el-icon-arrow-up:before) {
-        content: "";
-        display: inline-block;
-        border-left: 6px solid transparent;
-        border-right: 6px solid transparent;
-        border-top: 9px solid #606266;
-        position: relative;
-        transform: rotate(0deg);
-        transition: transform 0.3s;
-    }
+  :deep(.el-icon-arrow-up:before) {
+    content: "";
+    display: inline-block;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 9px solid #606266;
+    position: relative;
+    transform: rotate(0deg);
+    transition: transform 0.3s;
+  }
 }
 
 .el-table {
-  --table-max-height: calc(100vh - 400px);
+  --table-max-height: calc(100vh - 40vh);
   max-height: var(--table-max-height);
 
   .el-table__body-wrapper {
@@ -705,5 +695,23 @@ export default {
   }
 }
 
+:deep(.el-loading-mask) {
+  background-color: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(2px);
+}
 
+:deep(.el-loading-spinner .circular) {
+  width: 28px;
+  height: 28px;
+}
+
+:deep(.el-loading-spinner .path) {
+  stroke: #6b8cff;
+}
+
+:deep(.el-loading-text) {
+  color: #6b8cff !important;
+  font-size: 14px;
+  margin-top: 8px;
+}
 </style>

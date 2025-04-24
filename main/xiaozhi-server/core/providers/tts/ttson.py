@@ -5,6 +5,10 @@ import requests
 import shutil
 from datetime import datetime
 from core.providers.tts.base import TTSProviderBase
+from config.logger import setup_logging
+
+TAG = __name__
+logger = setup_logging()
 
 
 class TTSProvider(TTSProviderBase):
@@ -22,7 +26,7 @@ class TTSProvider(TTSProviderBase):
         self.to_lang = config.get("to_lang")
         self.volume_change_dB = int(config.get("volume_change_dB", 0))
         self.speed_factor = int(config.get("speed_factor", 1))
-        self.stream = bool(config.get("stream", False))
+        self.stream = str(config.get("stream", False)).lower() in ("true", "1", "yes")
         self.output_file = config.get("output_dir")
         self.pitch_factor = int(config.get("pitch_factor", 0))
         self.format = config.get("format", "mp3")
@@ -54,6 +58,7 @@ class TTSProvider(TTSProviderBase):
 
         resp = requests.request("POST", url, data=payload)
         if resp.status_code != 200:
+            logger.bind(tag=TAG).error(f"TTS请求失败: {resp.text}")
             return None
         resp_json = resp.json()
         try:
